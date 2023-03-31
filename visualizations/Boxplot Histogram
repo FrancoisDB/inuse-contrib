@@ -1,0 +1,245 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": "Average Power (W)",
+  "data": {
+    "url": {
+      "%context%": true,
+      "%timefield%": "ts_beg",
+      "%translate_data%": true,
+      "index": "",
+      "body": {
+        "aggs": {
+          "time_buckets": {
+            "date_histogram": {
+              "field": "ts_beg",
+              "interval": {
+                "%autointerval%": 50
+              },
+              "extended_bounds": {
+                "min": {
+                  "%timefilter%": "min"
+                },
+                "max": {
+                  "%timefilter%": "max"
+                }
+              },
+              "min_doc_count": 0
+            },
+            "aggs": {
+              "machines": {
+                "terms": {
+                  "field": "",
+                  "size": 20
+                },
+                "aggs": {
+                  "measure_percentiles": {
+                    "percentiles": {
+                      "field": "",
+                      "percents": [
+                        0,
+                        25,
+                        50,
+                        75,
+                        100
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "size": 0
+      }
+    },
+    "format": {
+      "property": "aggregations.time_buckets.buckets"
+    }
+  },
+  "transform": [
+    {
+      "calculate": "momentFormat(datum.key, 'lll')",
+      "as": "time"
+    },
+    {
+      "calculate": "datum.machines.buckets",
+      "as": "machines"
+    },
+    {
+      "flatten": [
+        "machines"
+      ],
+      "as": [
+        "machines"
+      ]
+    },
+    {
+      "calculate": "datum.machines.key",
+      "as": "machine"
+    },
+    {
+      "calculate": "datum.machines.measure_percentiles.values['25.0']",
+      "as": "q1"
+    },
+    {
+      "calculate": "datum.machines.measure_percentiles.values['50.0']",
+      "as": "q2"
+    },
+    {
+      "calculate": "datum.machines.measure_percentiles.values['75.0']",
+      "as": "q3"
+    },
+    {
+      "calculate": "datum.machines.measure_percentiles.values['0.0']",
+      "as": "min_value"
+    },
+    {
+      "calculate": "datum.machines.measure_percentiles.values['100.0']",
+      "as": "max_value"
+    },
+    {
+      "calculate": "datum.q3-datum.q1",
+      "as": "interquartile"
+    },
+    {
+      "calculate": "max(datum.q1-1.5*datum.interquartile,datum.min_value)",
+      "as": "lower_whisker"
+    },
+    {
+      "calculate": "min(datum.q3+1.5*datum.interquartile,datum.max_value)",
+      "as": "upper_whisker"
+    }
+  ],
+  "encoding": {
+    "x": {
+      "field": "key",
+      "type": "temporal",
+      "axis": {
+        "title": false,
+        "labelAngle": -45,
+        "labelExpr": "momentFormat(datum.value, 'lll')"
+      }
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "point"
+      },
+      "encoding": {
+        "y": {
+          "field": "min_value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "machine"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "point"
+      },
+      "encoding": {
+        "y": {
+          "field": "max_value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "machine"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule"
+      },
+      "encoding": {
+        "y": {
+          "field": "lower_whisker",
+          "type": "quantitative"
+        },
+        "y2": {
+          "field": "upper_whisker",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "machine"
+        },
+        "axis": {
+          "title": "power"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "bar",
+        "size": 14
+      },
+      "encoding": {
+        "y": {
+          "field": "q1",
+          "type": "quantitative"
+        },
+        "y2": {
+          "field": "q3",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "machine"
+        },
+        "tooltip": [
+          {
+            "field": "key",
+            "type": "temporal",
+            "title": "Date"
+          },
+          {
+            "field": "machine",
+            "type": "nominal",
+            "title": "Machine"
+          },
+          {
+            "field": "min_value",
+            "type": "quantitative",
+            "title": "Minimum Power(W)"
+          },
+          {
+            "field": "q1",
+            "type": "quantitative",
+            "title": "q1 Power (W)"
+          },
+          {
+            "field": "q2",
+            "type": "quantitative",
+            "title": "median Power(W)"
+          },
+          {
+            "field": "q3",
+            "type": "quantitative",
+            "title": "q3 Power (W)"
+          },
+          {
+            "field": "max_value",
+            "type": "quantitative",
+            "title": "Maximum Power(W)"
+          }
+        ]
+      }
+    },
+    {
+      "mark": {
+        "type": "tick",
+        "size": 14,
+        "color": "black"
+      },
+      "encoding": {
+        "y": {
+          "field": "q2",
+          "type": "quantitative",
+          "title": "Power (W)"
+        }
+      }
+    }
+  ]
+}
